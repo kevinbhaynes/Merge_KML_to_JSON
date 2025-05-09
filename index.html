@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KML to GeoJSON Merger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        
+        .file-input-container {
+            margin-bottom: 24px;
+        }
+        
+        .file-input-label {
+            display: block;
+            background-color: #f2f5f9;
+            border: 2px dashed #ccd6e0;
+            border-radius: 8px;
+            padding: 36px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .file-input-label:hover {
+            background-color: #e8eef5;
+            border-color: #b0c2d8;
+        }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .files-list {
+            margin: 16px 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f7f9fc;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .file-name {
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .file-remove {
+            background: none;
+            border: none;
+            color: #e53e3e;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .button:hover {
+            background-color: #3182ce;
+        }
+        
+        .button:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .result-container {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        
+        .success {
+            background-color: #c6f6d5;
+            color: #276749;
+        }
+        
+        .error {
+            background-color: #fed7d7;
+            color: #c53030;
+        }
+        
+        pre {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+            max-height: 300px;
+        }
+        
+        .download-link {
+            display: inline-block;
+            background-color: #38a169;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-top: 16px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .download-link:hover {
+            background-color: #2f855a;
+        }
+        
+        .github-link {
+            display: block;
+            text-align: center;
+            margin-top: 24px;
+            color: #718096;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>KML to GeoJSON Merger</h1>
+        <p>Upload multiple KML files to merge them and export as a single GeoJSON file.</p>
+        
+        <div class="file-input-container">
+            <label for="file-input" class="file-input-label">
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <div style="margin-top: 12px;">
+                        <strong>Choose KML files</strong> or drag & drop them here
+                    </div>
+                </div>
+            </label>
+            <input type="file" id="file-input" accept=".kml,.kmz" multiple>
+        </div>
+        
+        <ul class="files-list" id="files-list"></ul>
+        
+        <button id="merge-button" class="button" disabled>Merge and Convert to GeoJSON</button>
+        
+        <div id="result-container" class="result-container" style="display: none;">
+            <h2>Result</h2>
+            <div id="status-message" class="status-message"></div>
+            <div id="preview-container" style="display: none;">
+                <h3>Preview</h3>
+                <pre id="geojson-preview"></pre>
+                <a href="#" id="download-link" class="download-link">Download GeoJSON</a>
+            </div>
+        </div>
+    </div>
+    
+    <a href="https://github.com/yourusername/kml-merger" class="github-link" target="_blank">View on GitHub</a>
+    
+    <script>
+        // DOM elements
+        const fileInput = document.getElementById('file-input');
+        const filesList = document.getElementById('files-list');
+        const mergeButton = document.getElementById('merge-button');
+        const resultContainer = document.getElementById('result-container');
+        const statusMessage = document.getElementById('status-message');
+        const previewContainer = document.getElementById('preview-container');
+        const geojsonPreview = document.getElementById('geojson-preview');
+        const downloadLink = document.getElementById('download-link');
+        
+        // Store uploaded files
+        let uploadedFiles = [];
+        
+        // Handle file selection
+        fileInput.addEventListener('change', handleFileSelection);
+        
+        // Handle drag and drop
+        const dropZone = document.querySelector('.file-input-label');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#e2e8f0';
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.backgroundColor = '#f2f5f9';
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#f2f5f9';
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+        
+        // Handle merge button click
+        mergeButton.addEventListener('click', mergeAndConvert);
+        
+        function handleFileSelection() {
+            if (fileInput.files.length > 0) {
+                handleFiles(fileInput.files);
+            }
+        }
+        
+        function handleFiles(files) {
+            for (const file of files) {
+                if (file.name.toLowerCase().endsWith('.kml') || file.name.toLowerCase().endsWith('.kmz')) {
+                    // Check if file already exists in the list
+                    if (!uploadedFiles.some(f => f.name === file.name)) {
+                        uploadedFiles.push(file);
+                        addFileToList(file);
+                    }
+                }
+            }
+            
+            updateMergeButtonState();
+        }
+        
+        function addFileToList(file) {
+            const li = document.createElement('li');
+            li.className = 'file-item';
+            
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.className = 'file-name';
+            fileNameSpan.textContent = file.name;
+            
+            const removeButton = document.createElement('button');
+            removeButton.className = 'file-remove';
+            removeButton.textContent = 'Remove';
+            removeButton.addEventListener('click', () => {
+                uploadedFiles = uploadedFiles.filter(f => f.name !== file.name);
+                li.remove();
+                updateMergeButtonState();
+            });
+            
+            li.appendChild(fileNameSpan);
+            li.appendChild(removeButton);
+            filesList.appendChild(li);
+        }
+        
+        function updateMergeButtonState() {
+            mergeButton.disabled = uploadedFiles.length === 0;
+        }
+        
+        async function mergeAndConvert() {
+            try {
+                resultContainer.style.display = 'block';
+                statusMessage.className = 'status-message';
+                statusMessage.textContent = 'Processing files...';
+                previewContainer.style.display = 'none';
+                
+                const features = [];
+                
+                for (const file of uploadedFiles) {
+                    try {
+                        let kmlContent;
+                        
+                        if (file.name.toLowerCase().endsWith('.kmz')) {
+                            // Handle KMZ files (zipped KML)
+                            const zip = new JSZip();
+                            const zipContent = await zip.loadAsync(file);
+                            
+                            // Find the doc.kml file in the zip
+                            let kmlFile;
+                            zipContent.forEach((relativePath, zipEntry) => {
+                                if (relativePath.endsWith('.kml')) {
+                                    kmlFile = zipEntry;
+                                }
+                            });
+                            
+                            if (!kmlFile) {
+                                throw new Error(`No KML file found in KMZ: ${file.name}`);
+                            }
+                            
+                            const kmlText = await kmlFile.async('text');
+                            const parser = new DOMParser();
+                            kmlContent = parser.parseFromString(kmlText, 'text/xml');
+                        } else {
+                            // Handle regular KML files
+                            const kmlText = await readFileAsText(file);
+                            const parser = new DOMParser();
+                            kmlContent = parser.parseFromString(kmlText, 'text/xml');
+                        }
+                        
+                        // Convert KML to GeoJSON
+                        const geoJson = toGeoJSON.kml(kmlContent);
+                        
+                        // Add features to our collection
+                        if (geoJson.features && geoJson.features.length > 0) {
+                            features.push(...geoJson.features);
+                        }
+                    } catch (fileError) {
+                        console.error(`Error processing file ${file.name}:`, fileError);
+                        statusMessage.className = 'status-message error';
+                        statusMessage.textContent = `Error processing file ${file.name}: ${fileError.message}`;
+                        return;
+                    }
+                }
+                
+                // Create merged GeoJSON
+                const mergedGeoJson = {
+                    type: 'FeatureCollection',
+                    features: features
+                };
+                
+                // Display the result
+                const geojsonString = JSON.stringify(mergedGeoJson, null, 2);
+                geojsonPreview.textContent = geojsonString;
+                
+                // Create download link
+                const blob = new Blob([geojsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                downloadLink.href = url;
+                downloadLink.download = 'merged.geojson';
+                
+                // Show success message
+                statusMessage.className = 'status-message success';
+                statusMessage.textContent = `Successfully merged ${uploadedFiles.length} file(s) with ${features.length} total features.`;
+                previewContainer.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error during merge process:', error);
+                statusMessage.className = 'status-message error';
+                statusMessage.textContent = `Error during merge process: ${error.message}`;
+            }
+        }
+        
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
+        }
+    </script>
+</body>
+</html>
